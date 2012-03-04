@@ -68,8 +68,8 @@ The output keys are optional. All API methods will return the result value.
 
 ## REFERENCES
 
-* [Google's diff-match-patch][1]
-* [Dialectronics BinDecHex][2] for providing functions to enable diff-match-patch on Redis
+* [Google's diff-match-patch][1] provides the meat of the functionality in this library.
+* [Dialectronics BinDecHex][2] for providing functions to enable diff-match-patch on Redis.
 
 [1]: http://code.google.com/p/google-diff-match-patch/
 [2]: http://www.dialectronics.com/Lua/
