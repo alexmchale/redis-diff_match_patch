@@ -16,11 +16,11 @@ EVALSHA commands). This support was added in Redis 2.6.
 
 ## INSTALLATION
 
-To install manually from RubyGems:
+### To install manually from RubyGems:
 
     gem install redis-diff_match_patch
 
-To use in a project with Bundler, edit your Gemfile to have:
+### To use in a project with Bundler, edit your Gemfile to have:
 
     gem 'redis-diff_match_patch'
 
@@ -37,12 +37,11 @@ To use in a project with Bundler, edit your Gemfile to have:
     # Perform a 3-way merge
     dmp.merge ANCESTOR_KEY, KEY1, KEY2, RESULT_OUTPUT_KEY
 
-The output keys are optional. All API methods will return the result value.
+#### The output keys are optional. All API methods will return the result value.
 
 ## EXAMPLES
 
-Calculate the diff of an original document and a current version of that
-document.
+### Calculate the diff of an original document and a current version of that document.
 
 		redis = Redis.new
 		dmp = Redis::DiffMatchPatch.new redis
@@ -54,8 +53,7 @@ document.
 
 		redis["diff"] #=> "@@ -1,11 +1,13 @@\n-h\n+H\n ello\n+,\n  world\n+!\n"
 
-Perform a 3-way merge on two documents that are variations from an original
-source.
+### Perform a 3-way merge on two documents that are variations from an original source.
 
     redis = Redis.new
     dmp = Redis::DiffMatchPatch.new redis
