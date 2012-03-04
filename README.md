@@ -20,7 +20,7 @@ EVALSHA commands). This support was added in Redis 2.6.
 
     gem install redis-diff_match_patch
 
-### To use in a project with Bundler, edit your Gemfile to have:
+### To use in a project with Bundler, edit your Gemfile to include:
 
     gem 'redis-diff_match_patch'
 
@@ -37,21 +37,21 @@ EVALSHA commands). This support was added in Redis 2.6.
     # Perform a 3-way merge
     dmp.merge ANCESTOR_KEY, KEY1, KEY2, RESULT_OUTPUT_KEY
 
-#### The output keys are optional. All API methods will return the result value.
+The output keys are optional. All API methods will return the result value.
 
 ## EXAMPLES
 
 ### Calculate the diff of an original document and a current version of that document.
 
-		redis = Redis.new
-		dmp = Redis::DiffMatchPatch.new redis
+    redis = Redis.new
+    dmp = Redis::DiffMatchPatch.new redis
 
-		redis["original"] = "hello world"
-		redis["doc"] = "Hello, world!"
+    redis["original"] = "hello world"
+    redis["doc"] = "Hello, world!"
 
-		dmp.diff "original", "doc", "diff"
+    dmp.diff "original", "doc", "diff"
 
-		redis["diff"] #=> "@@ -1,11 +1,13 @@\n-h\n+H\n ello\n+,\n  world\n+!\n"
+    redis["diff"] #=> "@@ -1,11 +1,13 @@\n-h\n+H\n ello\n+,\n  world\n+!\n"
 
 ### Perform a 3-way merge on two documents that are variations from an original source.
 
@@ -66,4 +66,10 @@ EVALSHA commands). This support was added in Redis 2.6.
 
     redis["result"] #=> "Howdy, my friends!"
 
+## REFERENCES
+
+* [Google's diff-match-patch][1]
+* [Dialectronics BinDecHex][2] for providing functions to enable diff-match-patch on Redis
+
 [1]: http://code.google.com/p/google-diff-match-patch/
+[2]: http://www.dialectronics.com/Lua/
