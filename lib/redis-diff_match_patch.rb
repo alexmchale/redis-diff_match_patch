@@ -7,7 +7,8 @@ class Redis
 
     attr_reader :redis
 
-    VERSION      = "0.0.1"
+    VERSION      = "1.0.0"
+
     RESOURCE_DIR = File.dirname(__FILE__)
     DIFF_SCRIPT  = File.read File.join(RESOURCE_DIR, "diff_match_patch-diff.lua")
     DIFF_SHA1    = Digest::SHA1.hexdigest DIFF_SCRIPT
