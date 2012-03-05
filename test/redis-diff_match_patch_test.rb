@@ -16,29 +16,15 @@ class Redis
     def setup
       @redis = Redis.new
       @dmp = DiffMatchPatch.new @redis
-
-      @k = {}
-
-      %w( doc doc1 doc2 diff diff1 diff2 result ).each do |k|
-        @k[k] = "test-diff-match-patch:#{k}"
-        @redis.del @k[k]
-      end
     end
 
     def teardown
-      @k.each { |k, v| @redis.del v }
+      @autodel.each { |k| @redis.del k } if @autodel
     end
 
     def test_simple_diff_patch_cycle
-      doc1_key = "test-diff-match-patch:doc1"
-      doc2_key = "test-diff-match-patch:doc2"
-      diff_key = "test-diff-match-patch:diff"
-      result_key = "test-diff-match-patch:result"
-
-      @redis[doc1_key] = "hello world"
-      @redis[doc2_key] = "Howdy, world!"
-      @redis.del diff_key
-      @redis.del result_key
+      set :doc1, "hello world"
+      set :doc2, "Howdy, world!"
 
       expected_patch = <<-EXPECTED_PATCH.gsub(/^ {8}/, "")
         @@ -1,11 +1,13 @@
@@ -48,58 +34,42 @@ class Redis
         +!
       EXPECTED_PATCH
 
-      @dmp.diff doc1_key, doc2_key, diff_key
-      assert_equal expected_patch, @redis[diff_key]
+      @dmp.diff k(:doc1), k(:doc2), k(:diff)
+      assert_equal expected_patch, get(:diff)
 
-      @dmp.patch doc1_key, diff_key, result_key
-      assert_equal "Howdy, world!", @redis[result_key]
+      @dmp.patch k(:doc1), k(:diff), k(:result)
+      assert_equal "Howdy, world!", get(:result)
     end
 
     def test_complex_diff_patch_cycle
-      doc1_key = "test-diff-match-patch:doc1"
-      doc2_key = "test-diff-match-patch:doc2"
-      doc3_key = "test-diff-match-patch:doc3"
-      diff1_key = "test-diff-match-patch:diff1"
-      diff2_key = "test-diff-match-patch:diff2"
-      result_key = "test-diff-match-patch:result"
+      set :doc, "hello world"
+      set :doc1, "Howdy, world"
+      set :doc2, "hello my friends!"
 
-      @redis[doc1_key] = "hello world"
-      @redis[doc2_key] = "Howdy, world"
-      @redis[doc3_key] = "hello my friends!"
-      @redis.del diff1_key
-      @redis.del diff2_key
-      @redis.del result_key
+      @dmp.diff k(:doc), k(:doc1), k(:diff1)
+      @dmp.diff k(:doc), k(:doc2), k(:diff2)
 
-      @dmp.diff doc1_key, doc2_key, diff1_key
-      @dmp.diff doc1_key, doc3_key, diff2_key
+      @dmp.patch k(:doc), k(:diff1), k(:result)
+      @dmp.patch k(:result), k(:diff2), k(:result)
 
-      @dmp.patch doc1_key, diff1_key, result_key
-      @dmp.patch result_key, diff2_key, result_key
-
-      assert_equal "Howdy, my friends!", @redis[result_key]
+      assert_equal "Howdy, my friends!", get(:result)
     end
 
     def test_merge_cycle
-      doc1_key = "test-diff-match-patch:doc1"
-      doc2_key = "test-diff-match-patch:doc2"
-      doc3_key = "test-diff-match-patch:doc3"
-      result_key = "test-diff-match-patch:result"
+      set :doc, "hello world"
+      set :doc1, "Howdy, world"
+      set :doc2, "hello my friends!"
 
-      @redis[doc1_key] = "hello world"
-      @redis[doc2_key] = "Howdy, world"
-      @redis[doc3_key] = "hello my friends!"
-      @redis.del result_key
+      @dmp.merge k(:doc), k(:doc1), k(:doc2), k(:result)
 
-      @dmp.merge doc1_key, doc2_key, doc3_key, result_key
-
-      assert_equal "Howdy, my friends!", @redis[result_key]
+      assert_equal "Howdy, my friends!", get(:result)
     end
 
     def test_diff_without_destination_key
-      @redis[@k["doc1"]] = "My name is Alex."
-      @redis[@k["doc2"]] = "Your name is Bob!"
+      @redis.set k(:doc1), "My name is Alex."
+      @redis.set k(:doc2), "Your name is Bob!"
 
-      expected_diff = <<-EXPECTED_PATCH.gsub(/^ {8}/, "")
+      expected = <<-EXPECTED_PATCH.gsub(/^ {8}/, "")
         @@ -1,6 +1,8 @@
         -My
         +Your
@@ -110,38 +80,61 @@ class Redis
         +Bob!
       EXPECTED_PATCH
 
-      actual_diff = @dmp.diff @k["doc1"], @k["doc2"]
+      actual = @dmp.diff k(:doc1), k(:doc2)
 
-      assert_equal expected_diff, actual_diff
+      assert_equal expected, actual
     end
 
     def test_patch_without_destination_key
-      @redis[@k["doc"]] = "My name is Alex."
-      @redis[@k["diff"]] = <<-PATCH.gsub(/^ {8}/, "")
+      set :doc, "My name is Alex."
+
+      set :diff, <<-PATCH.gsub(/^ {8}/, "")
         @@ -1,6 +1,8 @@
         -My
         +Your
           nam
         @@ -10,9 +10,8 @@
-          is 
+          is
         -Alex.
         +Bob!
       PATCH
 
-      result = @dmp.patch @k["doc"], @k["diff"]
+      result = @dmp.patch k(:doc), k(:diff)
 
       assert_equal "Your name is Bob!", result
     end
 
     def test_merge_without_destination_key
-      @redis[@k["doc"]] = "Page One\nI'd like to tell you a story.\nThen end."
-      @redis[@k["doc1"]] = "Page Two\nI'd like to tell you a wonderful story.\nThen end."
-      @redis[@k["doc2"]] = "Page One\nI'm about to tell you a story.\nThe end, goodbye!"
+      set :doc, "Page One\nI'd like to tell you a story.\nThen end."
+      set :doc1, "Page Two\nI'd like to tell you a wonderful story.\nThen end."
+      set :doc2, "Page One\nI'm about to tell you a story.\nThe end, goodbye!"
 
       expected = "Page Two\nI'm about to tell you a wonderful story.\nThe end, goodbye!"
-      actual = @dmp.merge @k["doc"], @k["doc1"], @k["doc2"]
+      actual = @dmp.merge k(:doc), k(:doc1), k(:doc2)
 
       assert_equal expected, actual
+    end
+
+    protected
+
+    def k key
+      key = "test-diff-match-patch:#{key}"
+
+      @autodel ||= []
+      @autodel.push key
+      @autodel.uniq!
+
+      key
+    end
+
+    def set key, value
+      @redis.set k(key), value
+
+      value
+    end
+
+    def get key
+      @redis.get k(key)
     end
 
   end
