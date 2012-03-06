@@ -2321,28 +2321,28 @@ local diff2 = diff_main(src, dst2)
 local diff = diff1
 local diff1_offset = 1
 
-function diffToString(diffs)
-  local s = ""
-
-  for x, e in ipairs(diffs) do
-    if e[1] == DIFF_EQUAL then
-      s = s .. " EQU " .. e[2]
-    elseif e[1] == DIFF_DELETE then
-      s = s .. " DEL " .. e[2]
-    elseif e[1] == DIFF_INSERT then
-      s = s .. " INS " .. e[2]
-    end
-  end
-
-  return s
-end
-
-redis.call("set", "diff1-demo", diffToString(diff1))
-redis.call("set", "diff2-demo", diffToString(diff2))
-redis.call("del", "diff-demo-log")
-redis.call("del", "diff2-demo-log")
-redis.call("rpush", "diff-demo-log", diffToString(diff))
-redis.call("rpush", "diff2-demo-log", diffToString(diff2))
+-- function diffToString(diffs)
+--   local s = ""
+-- 
+--   for x, e in ipairs(diffs) do
+--     if e[1] == DIFF_EQUAL then
+--       s = s .. " EQU " .. e[2]
+--     elseif e[1] == DIFF_DELETE then
+--       s = s .. " DEL " .. e[2]
+--     elseif e[1] == DIFF_INSERT then
+--       s = s .. " INS " .. e[2]
+--     end
+--   end
+-- 
+--   return s
+-- end
+-- 
+-- redis.call("set", "diff1-demo", diffToString(diff1))
+-- redis.call("set", "diff2-demo", diffToString(diff2))
+-- redis.call("del", "diff-demo-log")
+-- redis.call("del", "diff2-demo-log")
+-- redis.call("rpush", "diff-demo-log", diffToString(diff))
+-- redis.call("rpush", "diff2-demo-log", diffToString(diff2))
 
 -- Merge diff2 into diff1.
 while table.getn(diff2) > 0 do
@@ -2420,8 +2420,8 @@ while table.getn(diff2) > 0 do
     diff1_offset = diff1_offset + 1
   end
 
-  redis.call("rpush", "diff-demo-log", diffToString(diff))
-  redis.call("rpush", "diff2-demo-log", diffToString(diff2))
+--   redis.call("rpush", "diff-demo-log", diffToString(diff))
+--   redis.call("rpush", "diff2-demo-log", diffToString(diff2))
 end
 
 local patches = patch_make(src, diff)
