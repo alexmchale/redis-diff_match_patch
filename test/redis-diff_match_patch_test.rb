@@ -115,6 +115,27 @@ class Redis
       assert_equal expected, actual
     end
 
+    def test_simple_merges
+      [
+        [ ""                 , [ ""           , ""              , ""             ] ],
+        [ "a"                , [ ""           , "a"             , ""             ] ], 
+        [ "a"                , [ ""           , ""              , "a"            ] ], 
+        [ "cat"              , [ "horse"      , "cat"           , "horse"        ] ], 
+        [ "cat"              , [ "horse"      , "horse"         , "cat"          ] ], 
+        [ "cat"              , [ "dog"        , "cat"           , "dog"          ] ], 
+        [ "cat"              , [ "dog"        , "dog"           , "cat"          ] ], 
+        [ ""                 , [ "cat"        , ""              , "cat"          ] ], 
+        [ ""                 , [ "cat"        , "cat"           , ""             ] ], 
+        [ "cat"              , [ "a"          , "ca"            , "at"           ] ], 
+        [ "take a break"     , [ "give heart" , "take heart"    , "give a break" ] ], 
+        [ "defghi"           , [ "abc"        , "def"           , "ghi"          ] ], 
+        [ "alex\ntest\nc\nd" , [ "a\nb\nc"    , "alex\nb\nc\nd" , "a\ntest\nc"   ] ], 
+        [ "a b c d e"        , [ "1 2 3 4 5"  , "a 2 c 4 e"     , "1 b 3 d 5"    ] ]
+      ].each do |expect, args|
+        assert_equal expect, simple_merge(*args)
+      end
+    end
+
     protected
 
     def k key
@@ -135,6 +156,14 @@ class Redis
 
     def get key
       @redis.get k(key)
+    end
+
+    def simple_merge doc, rev1, rev2
+      set :doc, doc
+      set :rev1, rev1
+      set :rev2, rev2
+
+      @dmp.merge k(:doc), k(:rev1), k(:rev2)
     end
 
   end

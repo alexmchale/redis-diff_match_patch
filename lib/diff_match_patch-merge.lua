@@ -2316,49 +2316,119 @@ end
 local src = redis.call("get", KEYS[1])
 local dst1 = redis.call("get", KEYS[2])
 local dst2 = redis.call("get", KEYS[3])
-local patches = patch_make(src, dst2)
-local result = patch_apply(patches, dst1)
+local diff1 = diff_main(src, dst1)
+local diff2 = diff_main(src, dst2)
+local diff = diff1
+local diff1_offset = 1
+
+function diffToString(diffs)
+  local s = ""
+
+  for x, e in ipairs(diffs) do
+    if e[1] == DIFF_EQUAL then
+      s = s .. " EQU " .. e[2]
+    elseif e[1] == DIFF_DELETE then
+      s = s .. " DEL " .. e[2]
+    elseif e[1] == DIFF_INSERT then
+      s = s .. " INS " .. e[2]
+    end
+  end
+
+  return s
+end
+
+redis.call("set", "diff1-demo", diffToString(diff1))
+redis.call("set", "diff2-demo", diffToString(diff2))
+redis.call("del", "diff-demo-log")
+redis.call("del", "diff2-demo-log")
+redis.call("rpush", "diff-demo-log", diffToString(diff))
+redis.call("rpush", "diff2-demo-log", diffToString(diff2))
+
+-- Merge diff2 into diff1.
+while table.getn(diff2) > 0 do
+  local element2 = table.remove(diff2, 1)
+  local type2 = element2[1]
+  local string2 = element2[2]
+  local length2 = string.len(string2)
+
+  if table.getn(diff) < diff1_offset then
+    table.insert(diff, element2)
+  else
+    local element1 = diff[diff1_offset]
+    local type1 = element1[1]
+    local string1 = element1[2]
+    local length1 = string.len(string1)
+
+    if type2 == DIFF_EQUAL then
+
+      if type1 == DIFF_EQUAL or type1 == DIFF_DELETE then
+        if length1 == length2 then
+        elseif length1 < length2 then
+          local substring = string.sub(string2, length1 + 1)
+          table.insert(diff2, 1, { type2, substring })
+        elseif length1 > length2 then
+          local substring1 = string.sub(string1, 1, length2)
+          local substring2 = string.sub(string1, length2 + 1)
+          diff[diff1_offset] = { type1, substring1 }
+          table.insert(diff, diff1_offset + 1, { type1, substring2 })
+        end
+
+      elseif type1 == DIFF_INSERT then
+        -- The other guy is adding text, wait for him to finish.
+        table.insert(diff2, 1, element2)
+
+      end
+
+    elseif type2 == DIFF_DELETE then
+
+      -- If I'm deleting and he's deleting too 
+      if type1 == DIFF_EQUAL or type1 == DIFF_DELETE then
+        if length1 <= length2 then
+          local substring = string.sub(string2, length1 + 1)
+          diff[diff1_offset] = { DIFF_DELETE, string1 }
+          table.insert(diff2, 1, { type1, substring })
+        elseif length1 > length2 then
+          local substring1 = string.sub(string1, 1, length2)
+          local substring2 = string.sub(string1, length2 + 1)
+          diff[diff1_offset] = { DIFF_DELETE, substring1 }
+          table.insert(diff, diff1_offset + 1, { type1, substring2 })
+        end
+
+      -- He's adding text, let him proceed!
+      elseif type1 == DIFF_INSERT then
+        table.insert(diff2, element2)
+
+      end
+
+    elseif type2 == DIFF_INSERT then
+
+      -- He doesn't have a change for this location, go ahead and insert.
+      if type1 == DIFF_EQUAL then
+        table.insert(diff, diff1_offset, element2)
+
+      -- Insert first and wait to delete.
+      elseif type1 == DIFF_DELETE then
+        table.insert(diff, diff1_offset, element2)
+
+      -- If we're both trying to insert, throw string2 away.
+      elseif type1 == DIFF_INSERT then
+
+      end
+
+    end
+
+    diff1_offset = diff1_offset + 1
+  end
+
+  redis.call("rpush", "diff-demo-log", diffToString(diff))
+  redis.call("rpush", "diff2-demo-log", diffToString(diff2))
+end
+
+local patches = patch_make(src, diff)
+local result = patch_apply(patches, src)
 
 if KEYS[4] then
-	redis.call("set", KEYS[4], result)
+  redis.call("set", KEYS[4], result)
 end
 
 return result
-
--- -- Expose the API
--- _M.DIFF_DELETE = DIFF_DELETE
--- _M.DIFF_INSERT = DIFF_INSERT
--- _M.DIFF_EQUAL = DIFF_EQUAL
---
--- _M.diff_main = diff_main
--- _M.diff_cleanupSemantic = diff_cleanupSemantic
--- _M.diff_cleanupEfficiency = diff_cleanupEfficiency
--- _M.diff_levenshtein = diff_levenshtein
--- _M.diff_prettyHtml = diff_prettyHtml
---
--- _M.match_main = match_main
---
--- _M.patch_make = patch_make
--- _M.patch_toText = patch_toText
--- _M.patch_fromText = patch_fromText
--- _M.patch_apply = patch_apply
---
--- -- Expose some non-API functions as well, for testing purposes etc.
--- _M.diff_commonPrefix = _diff_commonPrefix
--- _M.diff_commonSuffix = _diff_commonSuffix
--- _M.diff_commonOverlap = _diff_commonOverlap
--- _M.diff_halfMatch = _diff_halfMatch
--- _M.diff_bisect = _diff_bisect
--- _M.diff_cleanupMerge = _diff_cleanupMerge
--- _M.diff_cleanupSemanticLossless = _diff_cleanupSemanticLossless
--- _M.diff_text1 = _diff_text1
--- _M.diff_text2 = _diff_text2
--- _M.diff_toDelta = _diff_toDelta
--- _M.diff_fromDelta = _diff_fromDelta
--- _M.diff_xIndex = _diff_xIndex
--- _M.match_alphabet = _match_alphabet
--- _M.match_bitap = _match_bitap
--- _M.new_patch_obj = _new_patch_obj
--- _M.patch_addContext = _patch_addContext
--- _M.patch_splitMax = _patch_splitMax
--- _M.patch_addPadding = _patch_addPadding

@@ -20,4 +20,5 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency "redis"
   s.add_development_dependency "turn"
+  s.add_development_dependency "rake"
 end
